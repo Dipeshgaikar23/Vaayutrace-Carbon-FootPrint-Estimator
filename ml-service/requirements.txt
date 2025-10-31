@@ -1,0 +1,70 @@
+# ============================================
+# requirements.txt - For Python 3.12
+# ============================================
+flask==3.0.0
+flask-cors==4.0.0
+scikit-learn==1.3.2
+xgboost==2.0.3
+tensorflow==2.18.0
+pandas==2.1.4
+numpy==1.26.2
+joblib==1.3.2
+
+
+# ============================================
+# requirements-python311.txt - For Python 3.11
+# ============================================
+# flask==3.0.0
+# flask-cors==4.0.0
+# scikit-learn==1.3.2
+# xgboost==2.0.3
+# tensorflow==2.17.0
+# pandas==2.1.4
+# numpy==1.26.2
+# joblib==1.3.2
+
+
+# ============================================
+# requirements-python310.txt - For Python 3.10
+# ============================================
+# flask==3.0.0
+# flask-cors==4.0.0
+# scikit-learn==1.3.2
+# xgboost==2.0.3
+# tensorflow==2.16.2
+# pandas==2.1.4
+# numpy==1.26.2
+# joblib==1.3.2
+
+
+# ============================================
+# requirements-minimal.txt - Latest versions
+# ============================================
+# flask>=3.0.0
+# flask-cors>=4.0.0
+# scikit-learn>=1.3.0
+# xgboost>=2.0.0
+# tensorflow>=2.16.0
+# pandas>=2.1.0
+# numpy>=1.26.0
+# joblib>=1.3.0
+
+
+# ============================================
+# INSTALLATION COMMANDS
+# ============================================
+
+# Option 1: Use latest compatible versions (RECOMMENDED)
+# pip install flask flask-cors scikit-learn xgboost tensorflow pandas numpy joblib
+
+# Option 2: For Python 3.12 specifically
+# pip install -r requirements.txt
+
+# Option 3: Install latest TensorFlow
+# pip install --upgrade tensorflow
+
+# Option 4: CPU-only TensorFlow (faster install, smaller size)
+# pip install tensorflow-cpu
+
+# Option 5: If TensorFlow fails, use CPU version
+# pip install flask flask-cors scikit-learn xgboost tensorflow-cpu pandas numpy joblib
