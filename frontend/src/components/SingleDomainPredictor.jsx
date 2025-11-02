@@ -236,7 +236,7 @@ const SingleDomainPredictor = () => {
                     {predictions.suggestion && (
                         <div className="bg-gradient-to-r from-green-500 to-blue-500 rounded-2xl shadow-lg p-6 mb-8 text-white">
                             <div className="flex items-start gap-3">
-                                <CheckCircle size={24} className="flex-shrink-0 mt-1" />
+                                {/* <CheckCircle size={24} className="flex-shrink-0 mt-1" /> */}
                                 <div>
                                     <h3 className="text-xl font-bold mb-2">💡 Suggestion</h3>
                                     <p className="text-lg">{predictions.suggestion}</p>
