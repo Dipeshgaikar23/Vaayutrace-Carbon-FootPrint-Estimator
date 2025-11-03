@@ -363,8 +363,12 @@ if __name__ == '__main__':
     # Try to load existing models, otherwise train new ones
     if not load_all_models():
         print("No saved models found. Training new models...")
+        print("⏱️  This will take 10-15 minutes on first deployment...")
         initialize_all_models()
-    
+
+    # Get port from environment variable (Render provides this)
+    port = int(os.environ.get('PORT', 5001))
+
     print("\n" + "="*60)
     print("🌱 Carbon Footprint ML Service - Single Domain Mode")
     print("="*60)
@@ -379,4 +383,4 @@ if __name__ == '__main__':
     print("  - Retrain Domain:         POST /retrain/<domain>")
     print("="*60 + "\n")
     
-    app.run(host='0.0.0.0', port=5001, debug=True)
+    app.run(host='0.0.0.0', port=port, debug=True)

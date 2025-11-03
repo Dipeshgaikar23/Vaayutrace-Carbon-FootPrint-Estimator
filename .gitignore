@@ -19,12 +19,19 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
-.venv/
+.Python
+*.so
+*.egg
+*.egg-info/
 venv/
+.venv/
 env/
-ENV/
-.mypy_cache/
-.pytest_cache/
+.env
+.vscode/
+saved_models/
+*.h5
+*.pkl
+*.zip
 .DS_Store
 
 # Ignore model files but keep folders
