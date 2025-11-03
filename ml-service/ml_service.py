@@ -360,27 +360,40 @@ def retrain_domain(domain):
         }), 500
 
 if __name__ == '__main__':
-    # Try to load existing models, otherwise train new ones
-    if not load_all_models():
-        print("No saved models found. Training new models...")
-        print("⏱️  This will take 10-15 minutes on first deployment...")
-        initialize_all_models()
-
-    # Get port from environment variable (Render provides this)
-    port = int(os.environ.get('PORT', 5001))
-
+    import sys
+    
     print("\n" + "="*60)
-    print("🌱 Carbon Footprint ML Service - Single Domain Mode")
+    print("🚀 Starting Carbon Footprint ML Service")
     print("="*60)
-    print("API Endpoints:")
-    print("  - Health Check:           GET  /health")
-    print("  - Predict Electricity:    POST /predict/electricity")
-    print("  - Predict Transport:      POST /predict/transport")
-    print("  - Predict Manufacturing:  POST /predict/manufacturing")
-    print("  - Predict Construction:   POST /predict/construction")
-    print("  - Predict Agriculture:    POST /predict/agriculture")
-    print("  - Retrain All:            POST /retrain")
-    print("  - Retrain Domain:         POST /retrain/<domain>")
+    
+    # Try to load existing models
+    print("\n📦 Checking for existing models...")
+    if not load_all_models():
+        print("\n⚠️  No saved models found!")
+        print("🔧 Training new models (this will take 10-15 minutes)...")
+        print("="*60)
+        
+        try:
+            # Train all models
+            initialize_all_models()
+            print("\n✅ Model training completed successfully!")
+        except Exception as e:
+            print(f"\n❌ Error during model training: {e}")
+            print("Attempting to continue with partial models...")
+    else:
+        print("✅ All models loaded successfully!")
+    
+    # Verify models are loaded
+    models_count = sum(len(models[domain]) for domain in models.keys())
+    print(f"\n📊 Total models loaded: {models_count}/20")
+    
+    # Get port from environment
+    port = int(os.environ.get('PORT', 5001))
+    
+    print("\n" + "="*60)
+    print("🌱 ML Service Ready!")
+    print(f"🌐 Running on port {port}")
     print("="*60 + "\n")
     
-    app.run(host='0.0.0.0', port=port, debug=True)
+    # Start the app
+    app.run(host='0.0.0.0', port=port, debug=False)
