@@ -6,7 +6,7 @@ export const createElectricityRecord = async (recordData) => {
 };
 
 export const getUserElectricityRecords = async (userId, limit = null) => {
-  let query = await ElectricityRecord.find({ userId }).sort({ dateFrom: 1 });
+  let query = await ElectricityRecord.find({ userId }).sort({ dateFrom: 1 }).lean()
   if (limit) query = query.limit(limit);
   return query;
 };
@@ -31,5 +31,5 @@ export const getElectricityRecordsByDateRange = async (
     userId,
     dateFrom: { $gte: startDate },
     dateTo: { $lte: endDate },
-  }).sort({ dateFrom: 1 });
+  }).sort({ dateFrom: 1 }).lean();
 };

@@ -23,19 +23,6 @@ const standardDeviation = (arr) => {
   return Math.sqrt(mean(squareDiffs));
 };
 
-const normalize = (arr) => {
-  const validArr = arr.filter((v) => typeof v === "number" && !isNaN(v));
-  if (validArr.length === 0) return arr.map(() => 0.5);
-  const min = Math.min(...validArr);
-  const max = Math.max(...validArr);
-  if (max === min) return arr.map(() => 0.5);
-  return arr.map((v) => (typeof v === "number" && !isNaN(v) ? (v - min) / (max - min) : 0.5));
-};
-
-const denormalize = (normalizedValue, min, max) => {
-  return normalizedValue * (max - min) + min;
-};
-
 // ============================================
 // DATE HELPERS
 // ============================================
@@ -80,6 +67,82 @@ const safeDateDiff = (date1, date2) => {
 };
 
 // ============================================
+// HELPER: Safely get numeric value from record
+// ============================================
+
+const getNumericValue = (obj, key, defaultValue = 0) => {
+  if (!obj) return defaultValue;
+  
+  // Try direct access
+  let value = obj[key];
+  
+  // If it's a Mongoose document, try _doc
+  if (value === undefined && obj._doc) {
+    value = obj._doc[key];
+  }
+  
+  // If still undefined, try getter
+  if (value === undefined && typeof obj.get === 'function') {
+    value = obj.get(key);
+  }
+  
+  // Convert to number
+  const num = parseFloat(value);
+  return isNaN(num) ? defaultValue : num;
+};
+
+const getStringValue = (obj, key, defaultValue = '') => {
+  if (!obj) return defaultValue;
+  
+  let value = obj[key];
+  
+  if (value === undefined && obj._doc) {
+    value = obj._doc[key];
+  }
+  
+  if (value === undefined && typeof obj.get === 'function') {
+    value = obj.get(key);
+  }
+  
+  return value !== undefined && value !== null ? String(value) : defaultValue;
+};
+
+const getDateValue = (obj, key) => {
+  if (!obj) return null;
+  
+  let value = obj[key];
+  
+  if (value === undefined && obj._doc) {
+    value = obj._doc[key];
+  }
+  
+  if (value === undefined && typeof obj.get === 'function') {
+    value = obj.get(key);
+  }
+  
+  return value;
+};
+
+const getIdValue = (obj) => {
+  if (!obj) return null;
+  
+  // Try _id
+  let id = obj._id;
+  
+  // If it's a Mongoose document
+  if (id === undefined && obj._doc) {
+    id = obj._doc._id;
+  }
+  
+  // If it's an ObjectId
+  if (id && typeof id.toString === 'function') {
+    return id.toString();
+  }
+  
+  return id || null;
+};
+
+// ============================================
 // MODEL 1: LINEAR REGRESSION
 // ============================================
 
@@ -87,7 +150,6 @@ const linearRegression = (xValues, yValues) => {
   const n = xValues.length;
   if (n < 2) return null;
 
-  // Filter out invalid values
   const validPairs = [];
   for (let i = 0; i < n; i++) {
     if (
@@ -117,7 +179,6 @@ const linearRegression = (xValues, yValues) => {
   const slope = (validN * sumXY - sumX * sumY) / denominator;
   const intercept = (sumY - slope * sumX) / validN;
 
-  // Calculate R-squared
   const yMean = sumY / validN;
   const ssTot = validY.reduce((acc, y) => acc + Math.pow(y - yMean, 2), 0);
   const ssRes = validX.reduce(
@@ -138,7 +199,6 @@ const polynomialRegression = (xValues, yValues, degree = 2) => {
   if (n < degree + 1) return null;
 
   try {
-    // Build Vandermonde matrix
     const matrix = [];
     const vector = [];
 
@@ -150,11 +210,9 @@ const polynomialRegression = (xValues, yValues, degree = 2) => {
       vector[i] = xValues.reduce((sum, x, idx) => sum + Math.pow(x, i) * yValues[idx], 0);
     }
 
-    // Solve using Gaussian elimination
     const coefficients = gaussianElimination(matrix, vector);
     if (!coefficients) return null;
 
-    // Calculate R-squared
     const yMean = mean(yValues);
     const ssTot = yValues.reduce((acc, y) => acc + Math.pow(y - yMean, 2), 0);
     const predictions = xValues.map((x) =>
@@ -182,7 +240,6 @@ const gaussianElimination = (matrix, vector) => {
     const augmented = matrix.map((row, i) => [...row, vector[i]]);
 
     for (let i = 0; i < n; i++) {
-      // Find pivot
       let maxRow = i;
       for (let k = i + 1; k < n; k++) {
         if (Math.abs(augmented[k][i]) > Math.abs(augmented[maxRow][i])) {
@@ -193,7 +250,6 @@ const gaussianElimination = (matrix, vector) => {
 
       if (Math.abs(augmented[i][i]) < 1e-10) return null;
 
-      // Eliminate column
       for (let k = i + 1; k < n; k++) {
         const factor = augmented[k][i] / augmented[i][i];
         for (let j = i; j <= n; j++) {
@@ -202,7 +258,6 @@ const gaussianElimination = (matrix, vector) => {
       }
     }
 
-    // Back substitution
     const solution = new Array(n).fill(0);
     for (let i = n - 1; i >= 0; i--) {
       solution[i] = augmented[i][n];
@@ -228,7 +283,6 @@ const weightedMovingAverage = (values, weights = null) => {
   if (n === 0) return 0;
 
   if (!weights) {
-    // Generate exponential weights (more recent = higher weight)
     weights = validValues.map((_, i) => Math.pow(1.5, i));
   }
 
@@ -236,7 +290,6 @@ const weightedMovingAverage = (values, weights = null) => {
   if (totalWeight === 0) return mean(validValues);
 
   const weightedSum = validValues.reduce((sum, val, i) => sum + val * weights[i], 0);
-
   return weightedSum / totalWeight;
 };
 
@@ -267,40 +320,6 @@ const holtExponentialSmoothing = (values, alpha = 0.3, beta = 0.1) => {
 };
 
 // ============================================
-// MODEL 5: SEASONAL DECOMPOSITION
-// ============================================
-
-const detectSeasonality = (values, maxPeriod = 7) => {
-  const validValues = values.filter((v) => typeof v === "number" && !isNaN(v));
-  const n = validValues.length;
-  if (n < maxPeriod * 2) return null;
-
-  let bestPeriod = 0;
-  let bestCorrelation = 0;
-
-  for (let period = 2; period <= Math.min(maxPeriod, Math.floor(n / 2)); period++) {
-    let correlation = 0;
-    let count = 0;
-
-    for (let i = period; i < n; i++) {
-      correlation += validValues[i] * validValues[i - period];
-      count++;
-    }
-
-    if (count > 0) {
-      correlation /= count;
-      if (correlation > bestCorrelation) {
-        bestCorrelation = correlation;
-        bestPeriod = period;
-      }
-    }
-  }
-
-  const avgValue = mean(validValues);
-  return bestCorrelation > avgValue * 0.5 ? bestPeriod : null;
-};
-
-// ============================================
 // ENSEMBLE PREDICTION ENGINE
 // ============================================
 
@@ -312,14 +331,11 @@ const ensemblePredict = (records, predictionDays, valueKey, avgKey) => {
     };
   }
 
-  // Filter records with valid dates and values
+  // Filter records with valid dates and values using safe getters
   const validRecords = records.filter((r) => {
-    return (
-      r &&
-      isValidDate(r.dateFrom) &&
-      typeof r[avgKey] === "number" &&
-      !isNaN(r[avgKey])
-    );
+    const dateFrom = getDateValue(r, 'dateFrom');
+    const avgValue = getNumericValue(r, avgKey);
+    return isValidDate(dateFrom) && avgValue > 0;
   });
 
   if (validRecords.length < 2) {
@@ -330,14 +346,19 @@ const ensemblePredict = (records, predictionDays, valueKey, avgKey) => {
   }
 
   // Sort by date
-  validRecords.sort((a, b) => new Date(a.dateFrom) - new Date(b.dateFrom));
+  validRecords.sort((a, b) => {
+    const dateA = new Date(getDateValue(a, 'dateFrom'));
+    const dateB = new Date(getDateValue(b, 'dateFrom'));
+    return dateA - dateB;
+  });
 
   // Prepare data
-  const baseDate = new Date(validRecords[0].dateFrom).getTime();
+  const firstDate = new Date(getDateValue(validRecords[0], 'dateFrom')).getTime();
   const xValues = validRecords.map((r) => {
-    return safeDateDiff(r.dateFrom, validRecords[0].dateFrom);
+    const d = new Date(getDateValue(r, 'dateFrom')).getTime();
+    return (d - firstDate) / (1000 * 60 * 60 * 24);
   });
-  const yValues = validRecords.map((r) => r[avgKey]);
+  const yValues = validRecords.map((r) => getNumericValue(r, avgKey));
 
   // Remove outliers using IQR method
   const sortedY = [...yValues].sort((a, b) => a - b);
@@ -353,15 +374,8 @@ const ensemblePredict = (records, predictionDays, valueKey, avgKey) => {
     .map((y, i) => (y >= lowerBound && y <= upperBound ? i : -1))
     .filter((i) => i !== -1);
 
-  // If too many outliers, use all data
-  const cleanX =
-    cleanedIndices.length >= 2
-      ? cleanedIndices.map((i) => xValues[i])
-      : xValues;
-  const cleanY =
-    cleanedIndices.length >= 2
-      ? cleanedIndices.map((i) => yValues[i])
-      : yValues;
+  const cleanX = cleanedIndices.length >= 2 ? cleanedIndices.map((i) => xValues[i]) : xValues;
+  const cleanY = cleanedIndices.length >= 2 ? cleanedIndices.map((i) => yValues[i]) : yValues;
 
   if (cleanX.length < 2) {
     return {
@@ -381,15 +395,11 @@ const ensemblePredict = (records, predictionDays, valueKey, avgKey) => {
     modelWeights.push(linearModel.rSquared);
   }
 
-  // 2. Polynomial Regression (if enough data)
+  // 2. Polynomial Regression
   if (cleanX.length >= 4) {
     const polyModel = polynomialRegression(cleanX, cleanY, 2);
     if (polyModel && polyModel.rSquared > 0) {
-      models.push({
-        name: "Polynomial",
-        model: polyModel,
-        weight: polyModel.rSquared * 1.1,
-      });
+      models.push({ name: "Polynomial", model: polyModel, weight: polyModel.rSquared * 1.1 });
       modelWeights.push(polyModel.rSquared * 1.1);
     }
   }
@@ -403,12 +413,9 @@ const ensemblePredict = (records, predictionDays, valueKey, avgKey) => {
 
   // 4. Weighted Moving Average baseline
   const wmaBaseline = weightedMovingAverage(cleanY);
-  const recentTrend =
-    cleanY.length > 1 ? (cleanY[cleanY.length - 1] - cleanY[0]) / cleanY.length : 0;
+  const recentTrend = cleanY.length > 1 ? (cleanY[cleanY.length - 1] - cleanY[0]) / cleanY.length : 0;
   const wmaModel = {
-    predict: (steps) => {
-      return wmaBaseline + recentTrend * steps * 0.3;
-    },
+    predict: (steps) => wmaBaseline + recentTrend * steps * 0.3,
   };
   models.push({ name: "WMA", model: wmaModel, weight: 0.5 });
   modelWeights.push(0.5);
@@ -419,18 +426,17 @@ const ensemblePredict = (records, predictionDays, valueKey, avgKey) => {
 
   // Normalize weights
   const totalWeight = modelWeights.reduce((a, b) => a + b, 0);
-  const normalizedWeights =
-    totalWeight > 0
-      ? modelWeights.map((w) => w / totalWeight)
-      : modelWeights.map(() => 1 / modelWeights.length);
+  const normalizedWeights = totalWeight > 0
+    ? modelWeights.map((w) => w / totalWeight)
+    : modelWeights.map(() => 1 / modelWeights.length);
 
-  // Get last date and x position
+  // Get last date
   const lastRecord = validRecords[validRecords.length - 1];
-  const lastDate = new Date(lastRecord.dateTo || lastRecord.dateFrom);
-  const lastX =
-    (lastDate.getTime() - baseDate) / (1000 * 60 * 60 * 24);
+  const lastDateTo = getDateValue(lastRecord, 'dateTo') || getDateValue(lastRecord, 'dateFrom');
+  const lastDate = new Date(lastDateTo);
+  const lastX = (lastDate.getTime() - firstDate) / (1000 * 60 * 60 * 24);
 
-  // Generate ensemble predictions
+  // Generate predictions
   const predictions = [];
   let totalPredicted = 0;
   const minValue = Math.max(0, Math.min(...cleanY) * 0.5);
@@ -441,14 +447,11 @@ const ensemblePredict = (records, predictionDays, valueKey, avgKey) => {
     const futureX = lastX + day;
     let ensemblePrediction = 0;
 
-    // Weighted ensemble prediction
     models.forEach((m, i) => {
       let pred;
       try {
         if (m.name === "Linear" || m.name === "Polynomial") {
           pred = m.model.predict(futureX);
-        } else if (m.name === "Holt") {
-          pred = m.model.predict(day);
         } else {
           pred = m.model.predict(day);
         }
@@ -456,19 +459,13 @@ const ensemblePredict = (records, predictionDays, valueKey, avgKey) => {
         pred = avgValue;
       }
 
-      // Clamp prediction to reasonable bounds
-      if (typeof pred !== "number" || isNaN(pred)) {
-        pred = avgValue;
-      }
+      if (typeof pred !== "number" || isNaN(pred)) pred = avgValue;
       pred = Math.max(minValue, Math.min(maxValue, pred));
       ensemblePrediction += pred * normalizedWeights[i];
     });
 
-    // Apply dampening for far future predictions (reduce extreme values)
     const dampeningFactor = 1 / (1 + 0.01 * day);
     ensemblePrediction = avgValue + (ensemblePrediction - avgValue) * dampeningFactor;
-
-    // Ensure non-negative
     ensemblePrediction = Math.max(0, ensemblePrediction);
 
     const futureDate = new Date(lastDate);
@@ -483,7 +480,7 @@ const ensemblePredict = (records, predictionDays, valueKey, avgKey) => {
     totalPredicted += ensemblePrediction;
   }
 
-  // Calculate ensemble accuracy (cross-validation on training data)
+  // Calculate accuracy
   const cvPredictions = cleanX.map((x, i) => {
     let pred = 0;
     models.forEach((m, j) => {
@@ -491,8 +488,6 @@ const ensemblePredict = (records, predictionDays, valueKey, avgKey) => {
       try {
         if (m.name === "Linear" || m.name === "Polynomial") {
           p = m.model.predict(x);
-        } else if (m.name === "Holt") {
-          p = m.model.predict(i + 1);
         } else {
           p = m.model.predict(i + 1);
         }
@@ -505,7 +500,6 @@ const ensemblePredict = (records, predictionDays, valueKey, avgKey) => {
     return pred;
   });
 
-  // Calculate MAPE (Mean Absolute Percentage Error)
   let mapeSum = 0;
   let mapeCount = 0;
   cleanY.forEach((actual, i) => {
@@ -515,22 +509,14 @@ const ensemblePredict = (records, predictionDays, valueKey, avgKey) => {
     }
   });
   const mape = mapeCount > 0 ? mapeSum / mapeCount : 0.5;
-
-  // Convert MAPE to accuracy percentage
   const accuracy = Math.max(0, Math.min(100, (1 - mape) * 100));
 
-  // Calculate R-squared for ensemble
   const yMean = mean(cleanY);
   const ssTot = cleanY.reduce((acc, y) => acc + Math.pow(y - yMean, 2), 0);
-  const ssRes = cleanY.reduce(
-    (acc, y, i) => acc + Math.pow(y - cvPredictions[i], 2),
-    0
-  );
+  const ssRes = cleanY.reduce((acc, y, i) => acc + Math.pow(y - cvPredictions[i], 2), 0);
   const ensembleRSquared = ssTot === 0 ? 1 : Math.max(0, 1 - ssRes / ssTot);
-
-  // Confidence intervals (using standard deviation)
   const predictionStd = standardDeviation(cvPredictions);
-  const confidenceMargin = predictionStd * 1.96; // 95% confidence
+  const confidenceMargin = predictionStd * 1.96;
 
   return {
     canPredict: true,
@@ -545,14 +531,8 @@ const ensemblePredict = (records, predictionDays, valueKey, avgKey) => {
     predictionDays,
     modelsUsed: models.map((m) => m.name),
     historicalAverage: parseFloat(avgValue.toFixed(4)),
-    trend: linearModel
-      ? linearModel.slope > 0
-        ? "increasing"
-        : "decreasing"
-      : "stable",
-    trendStrength: linearModel
-      ? parseFloat(Math.abs(linearModel.slope).toFixed(6))
-      : 0,
+    trend: linearModel ? (linearModel.slope > 0 ? "increasing" : "decreasing") : "stable",
+    trendStrength: linearModel ? parseFloat(Math.abs(linearModel.slope).toFixed(6)) : 0,
   };
 };
 
@@ -561,18 +541,11 @@ const ensemblePredict = (records, predictionDays, valueKey, avgKey) => {
 // ============================================
 
 export const predictElectricity = (records, predictionDays) => {
-  const result = ensemblePredict(
-    records,
-    predictionDays,
-    "electricityUsed",
-    "dailyAvgCarbon"
-  );
+  const result = ensemblePredict(records, predictionDays, "electricityUsed", "dailyAvgCarbon");
 
   if (!result.canPredict) return result;
 
-  // Map predictions with both carbon and electricity values
   const emissionFactor = 0.4;
-
   const enrichedPredictions = result.predictions.map((p) => ({
     ...p,
     predictedCarbon: p.predicted,
@@ -583,9 +556,7 @@ export const predictElectricity = (records, predictionDays) => {
     ...result,
     predictions: enrichedPredictions,
     totalPredictedCarbon: result.totalPredicted,
-    totalPredictedElectricity: parseFloat(
-      (result.totalPredicted / emissionFactor).toFixed(4)
-    ),
+    totalPredictedElectricity: parseFloat((result.totalPredicted / emissionFactor).toFixed(4)),
     movingAvgDailyCarbon: result.dailyAverage,
   };
 };
@@ -595,30 +566,20 @@ export const predictElectricity = (records, predictionDays) => {
 // ============================================
 
 export const predictTransport = (records, predictionDays = 30) => {
-  const result = ensemblePredict(
-    records,
-    predictionDays,
-    "kmDriven",
-    "dailyAvgCarbon"
-  );
+  const result = ensemblePredict(records, predictionDays, "kmDriven", "dailyAvgCarbon");
 
   if (!result.canPredict) return result;
 
-  // Calculate average km per carbon unit
-  const validRecords = records.filter(
-    (r) =>
-      typeof r.dailyAvgKm === "number" &&
-      !isNaN(r.dailyAvgKm) &&
-      typeof r.dailyAvgCarbon === "number" &&
-      !isNaN(r.dailyAvgCarbon) &&
-      r.dailyAvgCarbon > 0
-  );
+  const validRecords = records.filter((r) => {
+    const dailyKm = getNumericValue(r, 'dailyAvgKm');
+    const dailyCarbon = getNumericValue(r, 'dailyAvgCarbon');
+    return dailyCarbon > 0;
+  });
 
-  const avgKmPerCarbon =
-    validRecords.length > 0
-      ? mean(validRecords.map((r) => r.dailyAvgKm)) /
-        mean(validRecords.map((r) => r.dailyAvgCarbon))
-      : 1;
+  const avgKmPerCarbon = validRecords.length > 0
+    ? mean(validRecords.map((r) => getNumericValue(r, 'dailyAvgKm'))) /
+      mean(validRecords.map((r) => getNumericValue(r, 'dailyAvgCarbon')))
+    : 1;
 
   const enrichedPredictions = result.predictions.map((p) => ({
     ...p,
@@ -630,9 +591,7 @@ export const predictTransport = (records, predictionDays = 30) => {
     ...result,
     predictions: enrichedPredictions,
     totalPredictedCarbon: result.totalPredicted,
-    totalPredictedKm: parseFloat(
-      (result.totalPredicted * avgKmPerCarbon).toFixed(4)
-    ),
+    totalPredictedKm: parseFloat((result.totalPredicted * avgKmPerCarbon).toFixed(4)),
     movingAvgDailyCarbon: result.dailyAverage,
   };
 };
@@ -645,10 +604,7 @@ const formatMonthLabel = (monthStr) => {
   try {
     if (!monthStr) return "";
     const [year, month] = monthStr.split("-");
-    const monthNames = [
-      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-    ];
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     const monthIndex = parseInt(month, 10) - 1;
     if (monthIndex >= 0 && monthIndex < 12) {
       return `${monthNames[monthIndex]} ${year}`;
@@ -664,10 +620,7 @@ const formatDateShort = (dateValue) => {
     if (!dateValue) return "Unknown";
     const d = new Date(dateValue);
     if (isNaN(d.getTime())) return "Unknown";
-    return d.toLocaleDateString("en-IN", {
-      day: "numeric",
-      month: "short",
-    });
+    return d.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
   } catch (e) {
     return "Unknown";
   }
@@ -677,6 +630,33 @@ export const calculateDashboardStats = (electricityRecords = [], transportRecord
   // Ensure arrays
   const elecRecords = Array.isArray(electricityRecords) ? electricityRecords : [];
   const transRecords = Array.isArray(transportRecords) ? transportRecords : [];
+
+  // Debug: Log what we received
+  // console.log("\n========== DASHBOARD STATS DEBUG ==========");
+  // console.log(`📊 Received ${elecRecords.length} electricity records`);
+  // console.log(`📊 Received ${transRecords.length} transport records`);
+  
+  if (elecRecords.length > 0) {
+    const sample = elecRecords[0];
+    // console.log("📦 Sample Electricity Record:");
+    // console.log("   - _id:", getIdValue(sample));
+    // console.log("   - carbonEmitted:", getNumericValue(sample, 'carbonEmitted'));
+    // console.log("   - electricityUsed:", getNumericValue(sample, 'electricityUsed'));
+    // console.log("   - dailyAvgCarbon:", getNumericValue(sample, 'dailyAvgCarbon'));
+    // console.log("   - dateFrom:", getDateValue(sample, 'dateFrom'));
+  }
+  
+  if (transRecords.length > 0) {
+    const sample = transRecords[0];
+    // console.log("📦 Sample Transport Record:");
+    // console.log("   - _id:", getIdValue(sample));
+    // console.log("   - carbonEmitted:", getNumericValue(sample, 'carbonEmitted'));
+    // console.log("   - kmDriven:", getNumericValue(sample, 'kmDriven'));
+    // console.log("   - fuelUsedLiters:", getNumericValue(sample, 'fuelUsedLiters'));
+    // console.log("   - dailyAvgCarbon:", getNumericValue(sample, 'dailyAvgCarbon'));
+    // console.log("   - dateFrom:", getDateValue(sample, 'dateFrom'));
+  }
+  // console.log("=============================================\n");
 
   const stats = {
     electricity: {
@@ -704,48 +684,40 @@ export const calculateDashboardStats = (electricityRecords = [], transportRecord
   // Electricity stats
   if (elecRecords.length > 0) {
     stats.electricity.recordCount = elecRecords.length;
-    stats.electricity.totalCarbon = elecRecords.reduce(
-      (sum, r) => sum + (r.carbonEmitted || 0),
-      0
-    );
-    stats.electricity.totalUsage = elecRecords.reduce(
-      (sum, r) => sum + (r.electricityUsed || 0),
-      0
-    );
+    
+    stats.electricity.totalCarbon = elecRecords.reduce((sum, r) => {
+      return sum + getNumericValue(r, 'carbonEmitted');
+    }, 0);
+    
+    stats.electricity.totalUsage = elecRecords.reduce((sum, r) => {
+      return sum + getNumericValue(r, 'electricityUsed');
+    }, 0);
 
     const dailyAvgs = elecRecords
-      .map((r) => r.dailyAvgCarbon)
-      .filter((v) => typeof v === "number" && !isNaN(v));
+      .map((r) => getNumericValue(r, 'dailyAvgCarbon'))
+      .filter((v) => v > 0);
 
-    stats.electricity.avgDailyCarbon =
-      dailyAvgs.length > 0
-        ? dailyAvgs.reduce((a, b) => a + b, 0) / dailyAvgs.length
-        : 0;
+    stats.electricity.avgDailyCarbon = dailyAvgs.length > 0
+      ? dailyAvgs.reduce((a, b) => a + b, 0) / dailyAvgs.length
+      : 0;
 
     // Calculate trend
     if (elecRecords.length >= 2) {
       const sorted = [...elecRecords]
-        .filter((r) => isValidDate(r.dateFrom))
-        .sort((a, b) => new Date(a.dateFrom) - new Date(b.dateFrom));
+        .filter((r) => isValidDate(getDateValue(r, 'dateFrom')))
+        .sort((a, b) => new Date(getDateValue(a, 'dateFrom')) - new Date(getDateValue(b, 'dateFrom')));
 
       if (sorted.length >= 2) {
-        const recent = sorted.slice(-Math.min(3, sorted.length));
-        const earlier = sorted.slice(0, Math.min(3, sorted.length));
+        const recentCount = Math.min(3, Math.ceil(sorted.length / 2));
+        const recent = sorted.slice(-recentCount);
+        const earlier = sorted.slice(0, recentCount);
 
-        const recentAvg =
-          recent.reduce((sum, r) => sum + (r.dailyAvgCarbon || 0), 0) /
-          recent.length;
-        const earlierAvg =
-          earlier.reduce((sum, r) => sum + (r.dailyAvgCarbon || 0), 0) /
-          earlier.length;
+        const recentAvg = recent.reduce((sum, r) => sum + getNumericValue(r, 'dailyAvgCarbon'), 0) / recent.length;
+        const earlierAvg = earlier.reduce((sum, r) => sum + getNumericValue(r, 'dailyAvgCarbon'), 0) / earlier.length;
 
         if (earlierAvg > 0) {
-          stats.electricity.trend =
-            recentAvg > earlierAvg * 1.1
-              ? "increasing"
-              : recentAvg < earlierAvg * 0.9
-              ? "decreasing"
-              : "stable";
+          stats.electricity.trend = recentAvg > earlierAvg * 1.1 ? "increasing"
+            : recentAvg < earlierAvg * 0.9 ? "decreasing" : "stable";
         }
       }
     }
@@ -754,95 +726,97 @@ export const calculateDashboardStats = (electricityRecords = [], transportRecord
   // Transport stats
   if (transRecords.length > 0) {
     stats.transport.recordCount = transRecords.length;
-    stats.transport.totalCarbon = transRecords.reduce(
-      (sum, r) => sum + (r.carbonEmitted || 0),
-      0
-    );
-    stats.transport.totalKm = transRecords.reduce(
-      (sum, r) => sum + (r.kmDriven || 0),
-      0
-    );
-    stats.transport.totalFuel = transRecords.reduce(
-      (sum, r) => sum + (r.fuelUsedLiters || 0),
-      0
-    );
+    
+    stats.transport.totalCarbon = transRecords.reduce((sum, r) => {
+      return sum + getNumericValue(r, 'carbonEmitted');
+    }, 0);
+    
+    stats.transport.totalKm = transRecords.reduce((sum, r) => {
+      return sum + getNumericValue(r, 'kmDriven');
+    }, 0);
+    
+    stats.transport.totalFuel = transRecords.reduce((sum, r) => {
+      return sum + getNumericValue(r, 'fuelUsedLiters');
+    }, 0);
 
     const dailyAvgs = transRecords
-      .map((r) => r.dailyAvgCarbon)
-      .filter((v) => typeof v === "number" && !isNaN(v));
+      .map((r) => getNumericValue(r, 'dailyAvgCarbon'))
+      .filter((v) => v > 0);
 
-    stats.transport.avgDailyCarbon =
-      dailyAvgs.length > 0
-        ? dailyAvgs.reduce((a, b) => a + b, 0) / dailyAvgs.length
-        : 0;
+    stats.transport.avgDailyCarbon = dailyAvgs.length > 0
+      ? dailyAvgs.reduce((a, b) => a + b, 0) / dailyAvgs.length
+      : 0;
 
     // Calculate trend
     if (transRecords.length >= 2) {
       const sorted = [...transRecords]
-        .filter((r) => isValidDate(r.dateFrom))
-        .sort((a, b) => new Date(a.dateFrom) - new Date(b.dateFrom));
+        .filter((r) => isValidDate(getDateValue(r, 'dateFrom')))
+        .sort((a, b) => new Date(getDateValue(a, 'dateFrom')) - new Date(getDateValue(b, 'dateFrom')));
 
       if (sorted.length >= 2) {
-        const recent = sorted.slice(-Math.min(3, sorted.length));
-        const earlier = sorted.slice(0, Math.min(3, sorted.length));
+        const recentCount = Math.min(3, Math.ceil(sorted.length / 2));
+        const recent = sorted.slice(-recentCount);
+        const earlier = sorted.slice(0, recentCount);
 
-        const recentAvg =
-          recent.reduce((sum, r) => sum + (r.dailyAvgCarbon || 0), 0) /
-          recent.length;
-        const earlierAvg =
-          earlier.reduce((sum, r) => sum + (r.dailyAvgCarbon || 0), 0) /
-          earlier.length;
+        const recentAvg = recent.reduce((sum, r) => sum + getNumericValue(r, 'dailyAvgCarbon'), 0) / recent.length;
+        const earlierAvg = earlier.reduce((sum, r) => sum + getNumericValue(r, 'dailyAvgCarbon'), 0) / earlier.length;
 
         if (earlierAvg > 0) {
-          stats.transport.trend =
-            recentAvg > earlierAvg * 1.1
-              ? "increasing"
-              : recentAvg < earlierAvg * 0.9
-              ? "decreasing"
-              : "stable";
+          stats.transport.trend = recentAvg > earlierAvg * 1.1 ? "increasing"
+            : recentAvg < earlierAvg * 0.9 ? "decreasing" : "stable";
         }
       }
     }
   }
 
   // Combined stats
-  stats.combined.totalCarbon =
-    stats.electricity.totalCarbon + stats.transport.totalCarbon;
+  stats.combined.totalCarbon = parseFloat((stats.electricity.totalCarbon + stats.transport.totalCarbon).toFixed(2));
 
-  // Monthly breakdown - with safe date handling
-  const allRecords = [
-    ...elecRecords
-      .filter((r) => isValidDate(r.dateFrom))
-      .map((r) => ({
-        ...r,
+  // Build allRecords with proper data extraction
+  const allRecords = [];
+
+  elecRecords.forEach((r) => {
+    const dateFrom = getDateValue(r, 'dateFrom');
+    if (isValidDate(dateFrom)) {
+      allRecords.push({
         type: "electricity",
-        _dateFrom: r.dateFrom,
-      })),
-    ...transRecords
-      .filter((r) => isValidDate(r.dateFrom))
-      .map((r) => ({
-        ...r,
+        carbonEmitted: getNumericValue(r, 'carbonEmitted'),
+        dateFrom: dateFrom,
+        _id: getIdValue(r),
+      });
+    }
+  });
+
+  transRecords.forEach((r) => {
+    const dateFrom = getDateValue(r, 'dateFrom');
+    if (isValidDate(dateFrom)) {
+      allRecords.push({
         type: "transport",
-        _dateFrom: r.dateFrom,
-      })),
-  ];
+        carbonEmitted: getNumericValue(r, 'carbonEmitted'),
+        dateFrom: dateFrom,
+        _id: getIdValue(r),
+      });
+    }
+  });
 
   // Sort by date
-  allRecords.sort((a, b) => {
-    const dateA = new Date(a._dateFrom);
-    const dateB = new Date(b._dateFrom);
-    return dateA - dateB;
-  });
+  allRecords.sort((a, b) => new Date(a.dateFrom) - new Date(b.dateFrom));
+
+  // // Debug: Log allRecords
+  // console.log("📋 All Records for Recent Activity:");
+  // allRecords.slice(-3).forEach((r, i) => {
+  //   console.log(`   [${i}] type: ${r.type}, carbonEmitted: ${r.carbonEmitted}, date: ${r.dateFrom}`);
+  // });
 
   // Group by month
   const monthlyData = {};
   allRecords.forEach((r) => {
-    const month = safeGetMonth(r._dateFrom);
+    const month = safeGetMonth(r.dateFrom);
     if (month) {
       if (!monthlyData[month]) {
         monthlyData[month] = { electricity: 0, transport: 0 };
       }
-      monthlyData[month][r.type] += r.carbonEmitted || 0;
+      monthlyData[month][r.type] += r.carbonEmitted;
     }
   });
 
@@ -852,23 +826,31 @@ export const calculateDashboardStats = (electricityRecords = [], transportRecord
       monthLabel: formatMonthLabel(month),
       electricity: parseFloat((data.electricity || 0).toFixed(2)),
       transport: parseFloat((data.transport || 0).toFixed(2)),
-      total: parseFloat(
-        ((data.electricity || 0) + (data.transport || 0)).toFixed(2)
-      ),
+      total: parseFloat(((data.electricity || 0) + (data.transport || 0)).toFixed(2)),
     }))
     .sort((a, b) => a.month.localeCompare(b.month));
 
-  // Recent activity (last 10 records) - with safe date handling
+  // Recent activity (last 10 records)
   stats.combined.recentActivity = allRecords
     .slice(-10)
     .reverse()
     .map((r) => ({
       type: r.type,
-      carbonEmitted: parseFloat((r.carbonEmitted || 0).toFixed(2)),
-      date: safeFormatDate(r._dateFrom) || new Date().toISOString(),
-      dateFormatted: formatDateShort(r._dateFrom),
-      id: r._id ? r._id.toString() : Math.random().toString(36).substr(2, 9),
+      carbonEmitted: parseFloat(r.carbonEmitted.toFixed(2)),
+      date: safeFormatDate(r.dateFrom) || new Date().toISOString(),
+      dateFormatted: formatDateShort(r.dateFrom),
+      id: r._id || `temp-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
     }));
+
+  // console.log("\n📊 Final Stats Summary:");
+  // console.log(`   - Electricity Total Carbon: ${stats.electricity.totalCarbon}`);
+  // console.log(`   - Transport Total Carbon: ${stats.transport.totalCarbon}`);
+  // console.log(`   - Combined Total Carbon: ${stats.combined.totalCarbon}`);
+  // console.log(`   - Recent Activity Count: ${stats.combined.recentActivity.length}`);
+  // if (stats.combined.recentActivity.length > 0) {
+  //   console.log(`   - First Recent Activity: ${JSON.stringify(stats.combined.recentActivity[0])}`);
+  // }
+  // console.log("=============================================\n");
 
   return stats;
 };

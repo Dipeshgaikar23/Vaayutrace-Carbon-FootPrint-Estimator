@@ -6,7 +6,7 @@ export const createTransportRecord = async (recordData) => {
 };
 
 export const getUserTransportRecords = async (userId, limit = null) => {
-  let query = TransportRecord.find({ userId }).sort({ dateFrom: 1 });
+  let query = TransportRecord.find({ userId }).sort({ dateFrom: 1 }).lean();
   if (limit) query = query.limit(limit);
   return await query;
 };
@@ -31,5 +31,5 @@ export const getTransportRecordsByDateRange = async (
     userId,
     dateFrom: { $gte: startDate },
     dateTo: { $lte: endDate },
-  }).sort({ dateFrom: 1 });
+  }).sort({ dateFrom: 1 }).lean();
 };

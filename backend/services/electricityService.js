@@ -17,16 +17,20 @@ export const calculateCarbonOnly = (electricityUsed) => {
   };
 };
 
-// Calculate and save to DB
 export const calculateAndSave = async (userId, data) => {
   const { electricityUsed, dateFrom, dateTo } = data;
 
   const carbonEmitted = calculateElectricityCarbon(electricityUsed);
   const durationDays = calculateDurationDays(dateFrom, dateTo);
   const dailyAvgCarbon = parseFloat((carbonEmitted / durationDays).toFixed(4));
-  const dailyAvgElectricity = parseFloat(
-    (electricityUsed / durationDays).toFixed(4)
-  );
+  const dailyAvgElectricity = parseFloat((electricityUsed / durationDays).toFixed(4));
+
+  // // Debug log
+  // console.log("💾 Saving Electricity Record:");
+  // console.log("   - electricityUsed:", electricityUsed);
+  // console.log("   - carbonEmitted:", carbonEmitted);
+  // console.log("   - durationDays:", durationDays);
+  // console.log("   - dailyAvgCarbon:", dailyAvgCarbon);
 
   const record = await electricityDao.createElectricityRecord({
     userId,
@@ -38,6 +42,9 @@ export const calculateAndSave = async (userId, data) => {
     dailyAvgCarbon,
     dailyAvgElectricity,
   });
+
+  // console.log("✅ Saved record:", record._id);
+  // console.log("   - Saved carbonEmitted:", record.carbonEmitted);
 
   return {
     record,

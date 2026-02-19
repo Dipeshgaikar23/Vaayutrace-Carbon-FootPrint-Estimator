@@ -3,6 +3,59 @@ import * as transportDao from "../dao/transportDao.js";
 import { calculateDashboardStats } from "../utils/predictionUtils.js";
 import { successResponse, errorResponse } from "../utils/responseUtils.js";
 
+// Debug function to check raw data
+export const debugRecords = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    // Get raw records directly from MongoDB
+    const electricityRecords = await electricityDao.getUserElectricityRecords(userId);
+    const transportRecords = await transportDao.getUserTransportRecords(userId);
+
+    // Log raw data
+    // console.log("\n🔍 DEBUG: Raw Electricity Records:");
+    // electricityRecords.forEach((r, i) => {
+    //   console.log(`  [${i}] ID: ${r._id}`);
+    //   console.log(`      carbonEmitted: ${r.carbonEmitted} (type: ${typeof r.carbonEmitted})`);
+    //   console.log(`      electricityUsed: ${r.electricityUsed}`);
+    //   console.log(`      dateFrom: ${r.dateFrom}`);
+    // });
+
+    // console.log("\n🔍 DEBUG: Raw Transport Records:");
+    // transportRecords.forEach((r, i) => {
+    //   console.log(`  [${i}] ID: ${r._id}`);
+    //   console.log(`      carbonEmitted: ${r.carbonEmitted} (type: ${typeof r.carbonEmitted})`);
+    //   console.log(`      kmDriven: ${r.kmDriven}`);
+    //   console.log(`      fuelUsedLiters: ${r.fuelUsedLiters}`);
+    //   console.log(`      dateFrom: ${r.dateFrom}`);
+    // });
+
+    return successResponse(res, 200, "Debug data", {
+      electricity: {
+        count: electricityRecords.length,
+        sample: electricityRecords[0] || null,
+        allCarbonValues: electricityRecords.map((r) => ({
+          id: r._id,
+          carbonEmitted: r.carbonEmitted,
+          type: typeof r.carbonEmitted,
+        })),
+      },
+      transport: {
+        count: transportRecords.length,
+        sample: transportRecords[0] || null,
+        allCarbonValues: transportRecords.map((r) => ({
+          id: r._id,
+          carbonEmitted: r.carbonEmitted,
+          type: typeof r.carbonEmitted,
+        })),
+      },
+    });
+  } catch (error) {
+    console.error("Debug error:", error);
+    return errorResponse(res, 500, error.message);
+  }
+};
+
 export const getDashboardStats = async (req, res) => {
   try {
     const userId = req.user._id;
@@ -31,6 +84,7 @@ export const getDashboardStats = async (req, res) => {
 
     // Calculate comprehensive stats
     const stats = calculateDashboardStats(electricityRecords, transportRecords);
+    // console.log(stats)
 
     // Add environmental impact metrics (with safe division)
     const totalCarbon = stats.combined.totalCarbon || 0;
