@@ -1,5 +1,5 @@
 export const formatNumber = (num, decimals = 2) => {
-  if (num === null || num === undefined) return "—";
+  if (num === null || num === undefined || isNaN(num)) return "—";
   return parseFloat(num).toFixed(decimals);
 };
 
@@ -20,9 +20,11 @@ export const getCarbonLevel = (kg) => {
 };
 
 export const getAccuracyLabel = (accuracy) => {
-  if (accuracy >= 80) return { label: "High Accuracy", color: "#00ff88" };
-  if (accuracy >= 50) return { label: "Moderate Accuracy", color: "#f59e0b" };
-  return { label: "Low Accuracy", color: "#f97316" };
+  if (accuracy >= 85) return { label: "Excellent", color: "#00ff88" };
+  if (accuracy >= 70) return { label: "Good", color: "#22c55e" };
+  if (accuracy >= 55) return { label: "Moderate", color: "#f59e0b" };
+  if (accuracy >= 40) return { label: "Fair", color: "#f97316" };
+  return { label: "Limited", color: "#ef4444" };
 };
 
 export const today = () => new Date().toISOString().split("T")[0];
@@ -31,4 +33,12 @@ export const daysAgo = (days) => {
   const d = new Date();
   d.setDate(d.getDate() - days);
   return d.toISOString().split("T")[0];
+};
+
+export const formatCurrency = (amount) => {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(amount);
 };

@@ -5,9 +5,11 @@ import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { checkAuth } from "./redux/slices/authSlice";
 import Navbar from "./components/common/Navbar";
+import ProtectedRoute from "./components/common/ProtectedRoute";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import Dashboard from "./pages/Dashboard";
 import Electricity from "./pages/Electricity";
 import Transport from "./pages/Transport";
 import Manufacturing from "./pages/Manufacturing";
@@ -27,6 +29,14 @@ export default function App() {
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/electricity" element={<Electricity />} />
           <Route path="/transport" element={<Transport />} />
           <Route path="/manufacturing" element={<Manufacturing />} />

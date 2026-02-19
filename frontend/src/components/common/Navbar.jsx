@@ -7,6 +7,7 @@ import { toast } from "react-toastify";
 
 const navLinks = [
   { path: "/", label: "Home", icon: "🏠" },
+  { path: "/dashboard", label: "Dashboard", icon: "📊", protected: true },
   { path: "/electricity", label: "Electricity", icon: "⚡" },
   { path: "/transport", label: "Transport", icon: "🚗" },
   { path: "/manufacturing", label: "Manufacturing", icon: "🏭" },
@@ -52,20 +53,21 @@ export default function Navbar() {
 
           {/* Desktop Nav */}
           <div className=" md:flex items-center gap-1">
-            {navLinks.map((link) => (
-              <Link
-                key={link.path}
-                to={link.path}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  location.pathname === link.path
-                    ? "bg-green-900/30 text-green-400 border border-green-500/30"
-                    : "text-gray-400 hover:text-green-400 hover:bg-green-900/20"
-                }`}
-              >
-                <span>{link.icon}</span>
-                {link.label}
-              </Link>
-            ))}
+            {navLinks
+              .filter((link) => !link.protected || isAuthenticated)
+              .map((link) => (
+                <Link
+                  key={link.path}
+                  to={link.path}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${location.pathname === link.path
+                      ? "bg-green-900/30 text-green-400 border border-green-500/30"
+                      : "text-gray-400 hover:text-green-400 hover:bg-green-900/20"
+                    }`}
+                >
+                  <span>{link.icon}</span>
+                  {link.label}
+                </Link>
+              ))}
           </div>
 
           {/* Auth Section */}
@@ -143,11 +145,10 @@ export default function Navbar() {
                   key={link.path}
                   to={link.path}
                   onClick={() => setIsOpen(false)}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                    location.pathname === link.path
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${location.pathname === link.path
                       ? "bg-green-900/30 text-green-400"
                       : "text-gray-400 hover:text-green-400"
-                  }`}
+                    }`}
                 >
                   <span>{link.icon}</span>
                   {link.label}

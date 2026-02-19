@@ -33,7 +33,7 @@ const features = [
 const stats = [
   { value: "0.4", label: "kg CO₂ per kWh", icon: "⚡", unit: "Emission Factor" },
   { value: "2.31", label: "kg CO₂ per Liter", icon: "⛽", unit: "Petrol Factor" },
-  { value: "2.68", label: "kg CO₂ per Liter", icon: "🛢️", unit: "Diesel Factor" },
+  { value: "2.68", label: "kg CO₂ per Liter ", icon: "🛢️", unit: "Diesel Factor" },
   { value: "ML", label: "Powered Predictions", icon: "🔮", unit: "Linear Regression" },
 ];
 

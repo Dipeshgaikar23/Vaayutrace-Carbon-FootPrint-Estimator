@@ -6,9 +6,9 @@ export const createElectricityRecord = async (recordData) => {
 };
 
 export const getUserElectricityRecords = async (userId, limit = null) => {
-  let query = ElectricityRecord.find({ userId }).sort({ dateFrom: 1 });
+  let query = await ElectricityRecord.find({ userId }).sort({ dateFrom: 1 });
   if (limit) query = query.limit(limit);
-  return await query;
+  return query;
 };
 
 export const getUserElectricityRecordCount = async (userId) => {
